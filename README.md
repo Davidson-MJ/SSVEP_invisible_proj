@@ -1,2 +1,2 @@
-# SSVEP-Wills
-extensions to PFI SSVEP analysis for central-colour fading.
+# SSVEP-PFI -> individually calibrated
+Analysis code at time of pre-print.
