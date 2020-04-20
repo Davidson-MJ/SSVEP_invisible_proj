@@ -1,0 +1,119 @@
+%PIPELINE
+
+%this script steps through the analysis for our PFI + frequency-tagging
+%project, with individually calibrated targets.
+
+% Behavioural scripts are numbered in order, and have the prefix BEH, 
+% EEG scripts follow.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% job list:
+clear job
+                        %% BEHAVIOURAL ANALYSIS:
+%job1: load the behavioural data, and epoch around all catch events (named
+%PMD in paper). This script also performs the calculation of shuffled
+%button-press likelihood around PMD onset. Determines which trials should
+%be removed from further analysis (failed PMD). 
+
+%contains script to plot Supp Figure  2 (PMD button press).
+job.epochBEH_CATCH                      =0;  
+%%
+%job2: epoch around all PFI. This scripts sorts based on the number of
+%buttons pressed, and direction. e.g. 2->3 buttons pressed, 3->2 buttons
+%pressed, etc. Also performs shuffling analysis, to compare rates of
+%simultaneous PFI to that expected by chance.
+
+%contains script to plot Supp Figure  5 (PFI location shuffling analysis).
+job.epochBEH_PFI                        =0;
+                                %%  EEG
+%job3: EEG preprocessing. This can be batched. 
+%imports from .bdf, auto bad chan reject, whole-trial epoch (48x60s),
+job.BatchPREPROCESS_eeg                 = 0;
+
+%%
+%job4: Epoch PFI and PMD periods from EEG, based on results from job 1, 2 above.
+job.epochPFI_PMDeeg                        = 0;
+
+%job5: after all PFI and PMD epochs have been collected (EEG in
+%time-domain), construct RESS spatial filters per participant, and relevant
+%frequency.
+job.createRESSfilt_perppant                =0;
+ 
+%job6: having created new individual participant RESS filters, apply to
+%both the PFI and PMD data, before continuing analysis on RESS components.
+job.applyRESSto_chandata                   =0;
+ 
+%job7: take moving window spectrogram of EEG data during PFI. 
+%sorts all PFI by amount of buttons pressed (in descending order). Prints
+%results per participant, as well as concatenates across participants, to
+%compare by 'amount of PFI', after resampling along trial dimension.
+%same for PMD.
+job.sortPFI_PMD_EEG                          =0;
+
+%job8 calculate evoked alpha per participant, 
+% perform cluster based corrections (in fieldtrip), and save output
+job.alphajobs                               =0;
+
+
+%% % Final plotting:
+
+%plots wholetrial log(spectrum), SNR, and topoplots.
+% shown in Supp figure 3. Topoplot shown in fig 2.
+job.plot_wholetrial_preRESS
+
+% plots the RESS log(snr) over time for separate hz, and PFI/PMD
+job.plotRESS_timecourse %(Fig 2)
+job.plotRainclouds 
+%plot evoked alpha figures
+job.plotHILBresults % (fig 3).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ %% begin analysis >>>> BEHAVIOUR 
+if job.epochBEH_CATCH %  CATCH=PMD
+    s1_BEH_catch_analysis;
+end
+if job.epochBEH_PFI
+    s2_BEH_PFI_analysis;
+end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% begin analysis >>>> EEG
+if job.BatchPREPROCESS_eeg
+    s3_EEG_A_EpochrawEEG;
+    s3_EEG_B_rereferenceEEG;
+end
+if job.epochPFI_PMDeeg
+    s3_EEG_C_EpochPFIEEG;
+    s3_EEG_Cc_EpochCatchEEG;
+end
+if job.createRESSfilt_perppant
+    s3_EEG_E_createRESSfiltersperppant;
+end
+if job.applyRESSto_chandata
+    s3_EEG_Ea_applyRESStoppantCatch
+    s3_EEG_Eb_applyRESStoppantPFI;
+end
+if job.sortPFI_PMD_EEG
+    s3_EEG_F_epochdynamicRESS_SNR;
+end
+if job.alphajobs
+    s3_EEG_alpha_evoked;
+end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% plotting
+if job.plot_wholetrial_preRESS
+s3_EEG_D_computeWholetrialSNR;
+end
+if job.plotRESS_timecourse
+plotRESS_snr_timecourse
+end
+if job.plotRainclouds 
+    plotRaincloud_nTargs;
+end
+if job.plotHILBresults 
+    plotALPHAHILBresults;
+end
